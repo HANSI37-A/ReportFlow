@@ -52,7 +52,7 @@ public class AuthController {
         // Using ResponseCookie to handle HttpOnly and SameSite properly
         ResponseCookie cookie = ResponseCookie.from("access_token", token)
                 .httpOnly(true)
-                .secure(false) // Set to true in production with HTTPS
+                .secure(false) 
                 .path("/")
                 .maxAge(24 * 60 * 60)
                 .sameSite("Lax")

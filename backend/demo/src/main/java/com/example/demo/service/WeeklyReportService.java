@@ -7,16 +7,22 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.example.demo.dto.NextWeekTaskResponse;
+import com.example.demo.dto.ReportTaskResponse;
+import com.example.demo.dto.WeeklyReportDetailResponse;
 import com.example.demo.dto.WeeklyReportRequest;
 import com.example.demo.dto.WeeklyReportResponse;
+import com.example.demo.entity.NextWeekTask;
 import com.example.demo.entity.Project;
 import com.example.demo.entity.ReportStatus;
+import com.example.demo.entity.ReportTask;
 import com.example.demo.entity.User;
 import com.example.demo.entity.WeeklyReport;
+import com.example.demo.repository.NextWeekTaskRepository;
 import com.example.demo.repository.ProjectRepository;
+import com.example.demo.repository.ReportTaskRepository;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.repository.WeeklyReportRepository;
-
 
 @Service
 public class WeeklyReportService {
@@ -24,15 +30,21 @@ public class WeeklyReportService {
     private final WeeklyReportRepository reportRepository;
     private final UserRepository userRepository;
     private final ProjectRepository projectRepository;
+    private final ReportTaskRepository taskRepository;
+    private final NextWeekTaskRepository nextWeekTaskRepository;
 
     public WeeklyReportService(
             WeeklyReportRepository reportRepository,
             UserRepository userRepository,
-            ProjectRepository projectRepository
+            ProjectRepository projectRepository,
+            ReportTaskRepository taskRepository,
+            NextWeekTaskRepository nextWeekTaskRepository
     ) {
         this.reportRepository = reportRepository;
         this.userRepository = userRepository;
         this.projectRepository = projectRepository;
+        this.taskRepository = taskRepository;
+        this.nextWeekTaskRepository = nextWeekTaskRepository;
     }
 
     @Transactional
@@ -40,7 +52,6 @@ public class WeeklyReportService {
             Long userId,
             WeeklyReportRequest request
     ) {
-
         validateDates(request);
 
         User user = userRepository.findById(userId)
@@ -59,24 +70,19 @@ public class WeeklyReportService {
         report.setProject(project);
         report.setWeekStart(request.getWeekStart());
         report.setWeekEnd(request.getWeekEnd());
-
-        // Every newly created report starts as DRAFT
         report.setStatus(ReportStatus.DRAFT);
-
         report.setBlockers(request.getBlockers());
         report.setKeyAchievement(request.getKeyAchievement());
         report.setHoursWorked(request.getHoursWorked());
         report.setNotes(request.getNotes());
 
-        WeeklyReport savedReport =
-                reportRepository.save(report);
+        WeeklyReport savedReport = reportRepository.save(report);
 
         return mapToResponse(savedReport);
     }
 
     @Transactional(readOnly = true)
     public List<WeeklyReportResponse> getMyReports(Long userId) {
-
         return reportRepository.findByUserId(userId)
                 .stream()
                 .map(this::mapToResponse)
@@ -88,13 +94,51 @@ public class WeeklyReportService {
             Long reportId,
             Long userId
     ) {
-
-        WeeklyReport report =
-                reportRepository.findByIdAndUserId(reportId, userId)
-                        .orElseThrow(() ->
-                                new ResponseStatusException(HttpStatus.NOT_FOUND, "Report not found with ID: " + reportId));
+        WeeklyReport report = reportRepository.findByIdAndUserId(reportId, userId)
+                .orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.NOT_FOUND, "Report not found with ID: " + reportId));
 
         return mapToResponse(report);
+    }
+
+    @Transactional(readOnly = true)
+    public WeeklyReportDetailResponse getMyReportDetail(
+            Long reportId,
+            Long userId
+    ) {
+        WeeklyReport report = reportRepository.findByIdAndUserId(reportId, userId)
+                .orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.NOT_FOUND, "Report not found with ID: " + reportId)
+                );
+
+        List<ReportTaskResponse> tasks = taskRepository.findByReportId(reportId)
+                .stream()
+                .map(this::mapTaskToResponse)
+                .toList();
+
+        List<NextWeekTaskResponse> nextWeekTasks = nextWeekTaskRepository.findByReportId(reportId)
+                .stream()
+                .map(this::mapNextWeekTaskToResponse)
+                .toList();
+
+        return new WeeklyReportDetailResponse(
+                report.getId(),
+                report.getUser().getId(),
+                report.getUser().getName(),
+                report.getProject() != null ? report.getProject().getId() : null,
+                report.getProject() != null ? report.getProject().getName() : null,
+                report.getWeekStart(),
+                report.getWeekEnd(),
+                report.getStatus(),
+                report.getBlockers(),
+                report.getKeyAchievement(),
+                report.getHoursWorked(),
+                report.getNotes(),
+                tasks,
+                nextWeekTasks,
+                report.getCreatedAt(),
+                report.getUpdatedAt()
+        );
     }
 
     @Transactional
@@ -103,15 +147,12 @@ public class WeeklyReportService {
             Long userId,
             WeeklyReportRequest request
     ) {
-
         validateDates(request);
 
-        WeeklyReport report =
-                reportRepository.findByIdAndUserId(reportId, userId)
-                        .orElseThrow(() ->
-                                new ResponseStatusException(HttpStatus.NOT_FOUND, "Report not found with ID: " + reportId));
+        WeeklyReport report = reportRepository.findByIdAndUserId(reportId, userId)
+                .orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.NOT_FOUND, "Report not found with ID: " + reportId));
 
-        // Members can only edit Draft or Needs Correction reports
         if (report.getStatus() != ReportStatus.DRAFT &&
                 report.getStatus() != ReportStatus.NEEDS_CORRECTION) {
 
@@ -133,8 +174,7 @@ public class WeeklyReportService {
         report.setHoursWorked(request.getHoursWorked());
         report.setNotes(request.getNotes());
 
-        WeeklyReport updatedReport =
-                reportRepository.save(report);
+        WeeklyReport updatedReport = reportRepository.save(report);
 
         return mapToResponse(updatedReport);
     }
@@ -144,11 +184,9 @@ public class WeeklyReportService {
             Long reportId,
             Long userId
     ) {
-
-        WeeklyReport report =
-                reportRepository.findByIdAndUserId(reportId, userId)
-                        .orElseThrow(() ->
-                                new ResponseStatusException(HttpStatus.NOT_FOUND, "Report not found with ID: " + reportId));
+        WeeklyReport report = reportRepository.findByIdAndUserId(reportId, userId)
+                .orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.NOT_FOUND, "Report not found with ID: " + reportId));
 
         if (report.getStatus() != ReportStatus.DRAFT &&
                 report.getStatus() != ReportStatus.NEEDS_CORRECTION) {
@@ -160,15 +198,11 @@ public class WeeklyReportService {
         }
 
         report.setStatus(ReportStatus.SUBMITTED);
-
         reportRepository.save(report);
     }
 
     private void validateDates(WeeklyReportRequest request) {
-
-        if (request.getWeekEnd()
-                .isBefore(request.getWeekStart())) {
-
+        if (request.getWeekEnd().isBefore(request.getWeekStart())) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Week end cannot be before week start"
@@ -176,9 +210,7 @@ public class WeeklyReportService {
         }
     }
 
-    private WeeklyReportResponse mapToResponse(
-            WeeklyReport report
-    ) {
+    private WeeklyReportResponse mapToResponse(WeeklyReport report) {
         Long userId = report.getUser() != null ? report.getUser().getId() : null;
         String userName = report.getUser() != null ? report.getUser().getName() : null;
         Long projectId = report.getProject() != null ? report.getProject().getId() : null;
@@ -199,6 +231,32 @@ public class WeeklyReportService {
                 report.getNotes(),
                 report.getCreatedAt(),
                 report.getUpdatedAt()
+        );
+    }
+
+    private ReportTaskResponse mapTaskToResponse(ReportTask task) {
+        return new ReportTaskResponse(
+                task.getId(),
+                task.getReport().getId(),
+                task.getTaskName(),
+                task.getPriority(),
+                task.getPlannedPercentage(),
+                task.getActualPercentage(),
+                task.getStatus(),
+                task.getPlannedHours(),
+                task.getSpentHours(),
+                task.getDeliverable(),
+                task.getCreatedAt()
+        );
+    }
+
+    private NextWeekTaskResponse mapNextWeekTaskToResponse(NextWeekTask task) {
+        return new NextWeekTaskResponse(
+                task.getId(),
+                task.getReport().getId(),
+                task.getTaskName(),
+                task.getPriority(),
+                task.getCreatedAt()
         );
     }
 }

@@ -12,11 +12,12 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
+import com.example.demo.dto.WeeklyReportDetailResponse;
 import com.example.demo.dto.WeeklyReportRequest;
 import com.example.demo.dto.WeeklyReportResponse;
 import com.example.demo.service.WeeklyReportService;
-import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.validation.Valid;
 
@@ -26,9 +27,7 @@ public class WeeklyReportController {
 
     private final WeeklyReportService reportService;
 
-    public WeeklyReportController(
-            WeeklyReportService reportService
-    ) {
+    public WeeklyReportController(WeeklyReportService reportService) {
         this.reportService = reportService;
     }
 
@@ -44,40 +43,27 @@ public class WeeklyReportController {
             @Valid @RequestBody WeeklyReportRequest request,
             Authentication authentication
     ) {
-
         Long userId = getAuthenticatedUserId(authentication);
-
-        WeeklyReportResponse response =
-                reportService.createReport(userId, request);
-
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(response);
+        WeeklyReportResponse response = reportService.createReport(userId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping
     public ResponseEntity<List<WeeklyReportResponse>> getMyReports(
             Authentication authentication
     ) {
-
         Long userId = getAuthenticatedUserId(authentication);
-
-        return ResponseEntity.ok(
-                reportService.getMyReports(userId)
-        );
+        return ResponseEntity.ok(reportService.getMyReports(userId));
     }
 
+    
     @GetMapping("/{reportId}")
-    public ResponseEntity<WeeklyReportResponse> getMyReport(
+    public ResponseEntity<WeeklyReportDetailResponse> getMyReport(
             @PathVariable Long reportId,
             Authentication authentication
     ) {
-
         Long userId = getAuthenticatedUserId(authentication);
-
-        return ResponseEntity.ok(
-                reportService.getMyReport(reportId, userId)
-        );
+        return ResponseEntity.ok(reportService.getMyReportDetail(reportId, userId));
     }
 
     @PutMapping("/{reportId}")
@@ -86,16 +72,8 @@ public class WeeklyReportController {
             @Valid @RequestBody WeeklyReportRequest request,
             Authentication authentication
     ) {
-
         Long userId = getAuthenticatedUserId(authentication);
-
-        return ResponseEntity.ok(
-                reportService.updateMyReport(
-                        reportId,
-                        userId,
-                        request
-                )
-        );
+        return ResponseEntity.ok(reportService.updateMyReport(reportId, userId, request));
     }
 
     @PostMapping("/{reportId}/submit")
@@ -103,11 +81,8 @@ public class WeeklyReportController {
             @PathVariable Long reportId,
             Authentication authentication
     ) {
-
         Long userId = getAuthenticatedUserId(authentication);
-
         reportService.submitMyReport(reportId, userId);
-
         return ResponseEntity.noContent().build();
     }
 }

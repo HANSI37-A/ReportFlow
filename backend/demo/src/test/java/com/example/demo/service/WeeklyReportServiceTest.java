@@ -1,20 +1,22 @@
 package com.example.demo.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import static org.mockito.ArgumentMatchers.any;
+import org.mockito.Mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -24,23 +26,41 @@ import com.example.demo.entity.Project;
 import com.example.demo.entity.ReportStatus;
 import com.example.demo.entity.User;
 import com.example.demo.entity.WeeklyReport;
+import com.example.demo.repository.NextWeekTaskRepository;
 import com.example.demo.repository.ProjectRepository;
+import com.example.demo.repository.ReportTaskRepository;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.repository.WeeklyReportRepository;
 
+@ExtendWith(MockitoExtension.class)
 class WeeklyReportServiceTest {
 
-    private WeeklyReportRepository reportRepository;
+    @Mock
+    private WeeklyReportRepository weeklyReportRepository;
+
+    @Mock
     private UserRepository userRepository;
+
+    @Mock
     private ProjectRepository projectRepository;
-    private WeeklyReportService reportService;
+
+    @Mock
+    private ReportTaskRepository reportTaskRepository;
+
+    @Mock
+    private NextWeekTaskRepository nextWeekTaskRepository;
+
+    private WeeklyReportService weeklyReportService;
 
     @BeforeEach
     void setUp() {
-        reportRepository = mock(WeeklyReportRepository.class);
-        userRepository = mock(UserRepository.class);
-        projectRepository = mock(ProjectRepository.class);
-        reportService = new WeeklyReportService(reportRepository, userRepository, projectRepository);
+        weeklyReportService = new WeeklyReportService(
+                weeklyReportRepository,
+                userRepository,
+                projectRepository,
+                reportTaskRepository,
+                nextWeekTaskRepository
+        );
     }
 
     @Test
@@ -59,12 +79,12 @@ class WeeklyReportServiceTest {
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(projectRepository.findById(10L)).thenReturn(Optional.of(project));
-        when(reportRepository.save(any(WeeklyReport.class))).thenAnswer(invocation -> {
+        when(weeklyReportRepository.save(any(WeeklyReport.class))).thenAnswer(invocation -> {
             WeeklyReport r = invocation.getArgument(0);
             return r;
         });
 
-        WeeklyReportResponse response = reportService.createReport(1L, request);
+        WeeklyReportResponse response = weeklyReportService.createReport(1L, request);
 
         assertNotNull(response);
         assertEquals(ReportStatus.DRAFT, response.getStatus());
@@ -80,7 +100,7 @@ class WeeklyReportServiceTest {
         request.setProjectId(10L);
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
-                reportService.createReport(1L, request)
+                weeklyReportService.createReport(1L, request)
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
@@ -88,10 +108,10 @@ class WeeklyReportServiceTest {
 
     @Test
     void testGetMyReportNotFoundThrowsNotFound() {
-        when(reportRepository.findByIdAndUserId(99L, 1L)).thenReturn(Optional.empty());
+        when(weeklyReportRepository.findByIdAndUserId(99L, 1L)).thenReturn(Optional.empty());
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
-                reportService.getMyReport(99L, 1L)
+                weeklyReportService.getMyReport(99L, 1L)
         );
 
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
@@ -102,14 +122,14 @@ class WeeklyReportServiceTest {
         WeeklyReport report = new WeeklyReport();
         report.setStatus(ReportStatus.SUBMITTED); // Already submitted
 
-        when(reportRepository.findByIdAndUserId(5L, 1L)).thenReturn(Optional.of(report));
+        when(weeklyReportRepository.findByIdAndUserId(5L, 1L)).thenReturn(Optional.of(report));
 
         WeeklyReportRequest request = new WeeklyReportRequest();
         request.setWeekStart(LocalDate.of(2026, 9, 1));
         request.setWeekEnd(LocalDate.of(2026, 9, 7));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
-                reportService.updateMyReport(5L, 1L, request)
+                weeklyReportService.updateMyReport(5L, 1L, request)
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
@@ -120,26 +140,26 @@ class WeeklyReportServiceTest {
         WeeklyReport report = new WeeklyReport();
         report.setStatus(ReportStatus.DRAFT);
 
-        when(reportRepository.findByIdAndUserId(5L, 1L)).thenReturn(Optional.of(report));
+        when(weeklyReportRepository.findByIdAndUserId(5L, 1L)).thenReturn(Optional.of(report));
 
-        reportService.submitMyReport(5L, 1L);
+        weeklyReportService.submitMyReport(5L, 1L);
 
         assertEquals(ReportStatus.SUBMITTED, report.getStatus());
-        verify(reportRepository).save(report);
+        verify(weeklyReportRepository).save(report);
     }
 
     @Test
     void testMapToResponseWithNullProjectDoesNotThrowNpe() {
         WeeklyReport report = new WeeklyReport();
         report.setUser(new User());
-        report.setProject(null); // Null project
+        report.setProject(null); 
         report.setWeekStart(LocalDate.of(2026, 9, 1));
         report.setWeekEnd(LocalDate.of(2026, 9, 7));
         report.setStatus(ReportStatus.DRAFT);
 
-        when(reportRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(report));
+        when(weeklyReportRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(report));
 
-        WeeklyReportResponse response = reportService.getMyReport(1L, 1L);
+        WeeklyReportResponse response = weeklyReportService.getMyReport(1L, 1L);
 
         assertNotNull(response);
         assertNull(response.getProjectId());
