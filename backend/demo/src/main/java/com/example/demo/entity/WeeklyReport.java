@@ -38,6 +38,10 @@ public class WeeklyReport {
     @JoinColumn(name = "project_id")
     private Project project;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "current_version_id")
+    private ReportVersion currentVersion;
+
     @Column(name = "week_start", nullable = false)
     private LocalDate weekStart;
 
@@ -98,6 +102,10 @@ public class WeeklyReport {
         return id;
     }
 
+    public void setId(Long id) {
+        this.id = id;
+    }
+
     public User getUser() {
         return user;
     }
@@ -112,6 +120,14 @@ public class WeeklyReport {
 
     public void setProject(Project project) {
         this.project = project;
+    }
+
+    public ReportVersion getCurrentVersion() {
+        return currentVersion;
+    }
+
+    public void setCurrentVersion(ReportVersion currentVersion) {
+        this.currentVersion = currentVersion;
     }
 
     public LocalDate getWeekStart() {
@@ -170,7 +186,6 @@ public class WeeklyReport {
         this.notes = notes;
     }
 
-
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -191,7 +206,35 @@ public class WeeklyReport {
         return tasks;
     }
 
+    public void setTasks(List<ReportTask> tasks) {
+        this.tasks = tasks;
+    }
+
     public List<NextWeekTask> getNextWeekTasks() {
         return nextWeekTasks;
+    }
+
+    public void setNextWeekTasks(List<NextWeekTask> nextWeekTasks) {
+        this.nextWeekTasks = nextWeekTasks;
+    }
+
+    public void addTask(ReportTask task) {
+        tasks.add(task);
+        task.setReport(this);
+    }
+
+    public void removeTask(ReportTask task) {
+        tasks.remove(task);
+        task.setReport(null);
+    }
+
+    public void addNextWeekTask(NextWeekTask task) {
+        nextWeekTasks.add(task);
+        task.setReport(this);
+    }
+
+    public void removeNextWeekTask(NextWeekTask task) {
+        nextWeekTasks.remove(task);
+        task.setReport(null);
     }
 }

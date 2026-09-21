@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -33,11 +35,13 @@ public class ReviewHistory {
     @JoinColumn(name = "report_version_id")
     private ReportVersion reportVersion;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "previous_status", length = 30)
-    private String previousStatus;
+    private ReportStatus previousStatus;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "new_status", length = 30)
-    private String newStatus;
+    private ReportStatus newStatus;
 
     @Column(columnDefinition = "TEXT")
     private String comment;
@@ -81,19 +85,19 @@ public class ReviewHistory {
         this.reportVersion = reportVersion;
     }
 
-    public String getPreviousStatus() {
+    public ReportStatus getPreviousStatus() {
         return previousStatus;
     }
 
-    public void setPreviousStatus(String previousStatus) {
+    public void setPreviousStatus(ReportStatus previousStatus) {
         this.previousStatus = previousStatus;
     }
 
-    public String getNewStatus() {
+    public ReportStatus getNewStatus() {
         return newStatus;
     }
 
-    public void setNewStatus(String newStatus) {
+    public void setNewStatus(ReportStatus newStatus) {
         this.newStatus = newStatus;
     }
 
