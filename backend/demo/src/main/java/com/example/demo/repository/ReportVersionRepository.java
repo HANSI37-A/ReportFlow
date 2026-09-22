@@ -14,8 +14,8 @@ public interface ReportVersionRepository
             Long reportId
     );
 
-    Optional<ReportVersion> findByReportIdAndVersionNumber(
-            Long reportId,
-            Integer versionNumber
+    Optional<ReportVersion>
+    findTopByReportIdOrderByVersionNumberDesc(
+            Long reportId
     );
 }

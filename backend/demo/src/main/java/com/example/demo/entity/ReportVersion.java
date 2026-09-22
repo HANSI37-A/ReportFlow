@@ -40,19 +40,31 @@ public class ReportVersion {
     @Column(name = "snapshot_data", columnDefinition = "jsonb", nullable = false)
     private String snapshotData;
 
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     public ReportVersion() {
     }
 
+    public ReportVersion(WeeklyReport report, Integer versionNumber, String snapshotData) {
+        this.report = report;
+        this.versionNumber = versionNumber;
+        this.snapshotData = snapshotData;
+    }
+
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
     }
 
     public Long getId() {
         return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public WeeklyReport getReport() {
@@ -81,5 +93,9 @@ public class ReportVersion {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 }
